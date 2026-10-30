@@ -150,7 +150,93 @@ html_code = """
         let currentDifficulty = 'normal';
         let cameraX = 0;
         let animationFrameId = null;
+        let touchJump = false;
         const keys = {};
+
+        // Web Audio API Synth Synthesizer Sound Effects & BGM
+        const SoundFX = {
+            ctx: null,
+            bgmOsc: null,
+            bgmInterval: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            playJump() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            },
+            playHit() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(40, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            },
+            playEscape() {
+                if (!this.ctx) return;
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.1);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.1 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.1);
+                    osc.stop(this.ctx.currentTime + idx * 0.1 + 0.2);
+                });
+            },
+            startBGM() {
+                if (!this.ctx) this.init();
+                this.stopBGM();
+                const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+                let noteIndex = 0;
+                this.bgmInterval = setInterval(() => {
+                    if (gameState !== 'PLAYING') return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(notes[noteIndex % notes.length], this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.2);
+                    noteIndex++;
+                }, 250);
+            },
+            stopBGM() {
+                if (this.bgmInterval) {
+                    clearInterval(this.bgmInterval);
+                    this.bgmInterval = null;
+                }
+            }
+        };
 
         class Hamster {
             constructor() {
@@ -332,6 +418,9 @@ html_code = """
             document.getElementById('game-hud').classList.remove('hidden');
 
             gameState = 'PLAYING';
+            SoundFX.init();
+            SoundFX.startBGM();
+
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             gameLoop();
         }
@@ -373,6 +462,10 @@ html_code = """
             hazards.forEach(h => {
                 if (h.type === 'boulder') {
                     h.x += h.vx;
+                    if (h.x < 200 || h.x > levelWidth - 400) h.vx *= -1;
+                }
+            });
+
             // Va chạm chướng ngại vật
             if (player.invulnerableTimer === 0 && !player.enteringSewer) {
                 hazards.forEach(h => {
@@ -477,6 +570,7 @@ html_code = """
 
         function endGame(isVictory) {
             gameState = isVictory ? 'VICTORY' : 'GAMEOVER';
+            SoundFX.stopBGM();
             const endTitle = document.getElementById('end-title');
             const endSubtitle = document.getElementById('end-subtitle');
 
