@@ -494,5 +494,6 @@ html_code = """
 </body>
 </html>
 """
+
 # Hiển thị game thông qua HTML Component của Streamlit
 components.html(html_code, height=520, scrolling=False)
