@@ -184,10 +184,10 @@ html_code = """
                 } else {
                     this.vx *= 0.7;
                 }
-
-                if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && this.grounded) {
+                if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchJump) && this.grounded) {
                     this.vy = -(diff ? diff.jumpPower : 12.5);
                     this.grounded = false;
+                    SoundFX.playJump();
                 }
 
                 this.vy += (diff ? diff.gravity : 0.55);
@@ -259,6 +259,10 @@ html_code = """
             document.getElementById('btn-diff-easy').onclick = () => startGame('easy');
             document.getElementById('btn-diff-normal').onclick = () => startGame('normal');
             document.getElementById('btn-diff-hard').onclick = () => startGame('hard');
+
+            // Sound initialization on click
+            window.addEventListener('click', () => SoundFX.init(), { once: true });
+            window.addEventListener('keydown', () => SoundFX.init(), { once: true });
 
             document.getElementById('btn-restart').onclick = () => {
                 document.getElementById('screen-game-end').classList.add('hidden');
@@ -369,10 +373,7 @@ html_code = """
             hazards.forEach(h => {
                 if (h.type === 'boulder') {
                     h.x += h.vx;
-                    if (h.x < 200 || h.x > levelWidth - 300) h.vx *= -1;
-                }
-            });
-
+            // Va chạm chướng ngại vật
             if (player.invulnerableTimer === 0 && !player.enteringSewer) {
                 hazards.forEach(h => {
                     if (player.x + 8 < h.x + h.w &&
@@ -383,6 +384,7 @@ html_code = """
                         player.lives--;
                         player.invulnerableTimer = 50;
                         player.vy = -7;
+                        SoundFX.playHit();
                         updateHUDLives();
 
                         if (player.lives <= 0) {
@@ -392,9 +394,11 @@ html_code = """
                 });
             }
 
+            // Chui vào cống ngầm hoàn thành màn chơi
             if (exitPipe && player.x + player.width / 2 >= exitPipe.x + 15 && player.x + player.width / 2 <= exitPipe.x + exitPipe.w - 15) {
                 if (player.grounded && !player.enteringSewer) {
                     player.enteringSewer = true;
+                    SoundFX.playEscape();
                     setTimeout(() => {
                         endGame(true);
                     }, 1200);
@@ -490,6 +494,5 @@ html_code = """
 </body>
 </html>
 """
-
 # Hiển thị game thông qua HTML Component của Streamlit
 components.html(html_code, height=520, scrolling=False)
